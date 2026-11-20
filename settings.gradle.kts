@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MossTTS"
 include(":app")
+include(":edgeapp")

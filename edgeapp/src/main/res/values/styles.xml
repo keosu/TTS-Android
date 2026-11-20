@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.EdgeTts" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#007C91</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#F5FAFA</item>
+        <item name="android:navigationBarColor">#F5FAFA</item>
+    </style>
+</resources>

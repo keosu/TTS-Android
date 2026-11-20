@@ -1,0 +1,20 @@
+Edge TTS Android
+
+Application source (Apache-2.0):
+https://github.com/keosu/MOSS-TTS-Nano-Android/tree/feature/edge-tts/edgeapp
+
+The Sec-MS-GEC v2 implementation (EdgeGec.kt) is adapted from edge-tts
+src/edge_tts/drm.py and is licensed under LGPL-3.0-only.
+Copyright (c) rany <rany@riseup.net> and edge-tts contributors.
+Upstream source: https://github.com/rany2/edge-tts
+Reference commit: b2ffbdd9f43f28f03cc939b5de0f3964aa62d60e
+Modifications: Kotlin/JVM port using 32-bit integer arithmetic.
+
+Copies of LGPLv3 and GPLv3 follow in this dialog and are bundled in assets/licenses.
+Complete corresponding source and build/install instructions are in the repository
+README.md and THIRD_PARTY_NOTICES.md. You may modify the library, rebuild this app,
+and install it with your own signing key; no device-specific signing key is required.
+
+OkHttp / Okio: Copyright Square, Inc.; Apache-2.0.
+Kotlin standard library: Copyright JetBrains s.r.o.; Apache-2.0.
+This application is an independent client and is not affiliated with Microsoft.
