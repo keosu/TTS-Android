@@ -59,12 +59,31 @@
             android:name=".service.MossTTSService"
             android:directBootAware="false"
             android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:description="@string/system_tts_engine_desc"
             android:label="@string/system_tts_engine_name">
             <intent-filter>
                 <action android:name="android.intent.action.TTS_SERVICE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <meta-data
+                android:name="android.speech.tts"
+                android:resource="@xml/tts_engine" />
         </service>
+
+        <!-- 系统设置通过这些入口检查模型、获取试听文本和安装语音数据。 -->
+        <activity
+            android:name=".service.SystemTtsActivity"
+            android:exported="true"
+            android:label="@string/system_tts_engine_name"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.speech.tts.engine.CHECK_TTS_DATA" />
+                <action android:name="android.speech.tts.engine.INSTALL_TTS_DATA" />
+                <action android:name="android.speech.tts.engine.GET_SAMPLE_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
     </application>
 

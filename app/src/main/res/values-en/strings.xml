@@ -235,5 +235,7 @@
     <!-- System TTS engine -->
     <string name="system_tts_engine_name">MOSS TTS Local Engine</string>
     <string name="system_tts_engine_desc">System text-to-speech engine powered by the local MOSS-TTS model</string>
+    <string name="system_tts_open_settings">Open system text-to-speech settings</string>
+    <string name="system_tts_sample_text">你好，这是 MOSS TTS 本地语音合成引擎。</string>
     <string name="system_tts_enable_hint">Go to System Settings &gt; Accessibility / Language &gt; Text-to-speech output, then select MOSS TTS Local Engine to let other apps use this engine for speech. Make sure the model has been downloaded in the app before first use.</string>
 </resources>

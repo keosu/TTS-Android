@@ -79,6 +79,10 @@ val screens = listOf(Screen.Home, Screen.Voice, Screen.History, Screen.Models, S
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        const val EXTRA_INITIAL_SCREEN = "com.mosstts.app.INITIAL_SCREEN"
+    }
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { /* 权限结果处理 */ }
@@ -124,9 +128,10 @@ class MainActivity : ComponentActivity() {
                     controller.isAppearanceLightNavigationBars = !isDark
                 }
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    MainScreen(onHideNavigationBarChanged = { hide ->
-                        hideNavigationBar(hide)
-                    })
+                    MainScreen(
+                        initialRoute = intent.getStringExtra(EXTRA_INITIAL_SCREEN),
+                        onHideNavigationBarChanged = { hide -> hideNavigationBar(hide) },
+                    )
                 }
             }
         }
@@ -176,7 +181,10 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(onHideNavigationBarChanged: ((Boolean) -> Unit)? = null) {
+fun MainScreen(
+    initialRoute: String? = null,
+    onHideNavigationBarChanged: ((Boolean) -> Unit)? = null,
+) {
     val navController = rememberNavController()
     val ttsViewModel: TTSViewModel = viewModel()
     val modelViewModel: ModelViewModel = viewModel()
@@ -258,7 +266,7 @@ fun MainScreen(onHideNavigationBarChanged: ((Boolean) -> Unit)? = null) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = screens.firstOrNull { it.route == initialRoute }?.route ?: Screen.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) {

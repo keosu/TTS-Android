@@ -137,6 +137,41 @@ fun SettingsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    stringResource(R.string.system_tts_engine_name),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.system_tts_enable_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(onClick = {
+                    try {
+                        context.startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        android.widget.Toast.makeText(
+                            context,
+                            R.string.system_tts_enable_hint,
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }) {
+                    Text(stringResource(R.string.system_tts_open_settings))
+                }
+            }
+        }
+
         // 外观设置
         Card(
             modifier = Modifier.fillMaxWidth(),

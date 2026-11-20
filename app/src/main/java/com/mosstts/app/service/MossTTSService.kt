@@ -6,20 +6,15 @@ import android.speech.tts.SynthesisCallback
 import android.speech.tts.SynthesisRequest
 import android.speech.tts.TextToSpeech
 import android.speech.tts.TextToSpeechService
+import android.speech.tts.Voice
 import com.mosstts.app.MossTTSApp
 import com.mosstts.app.data.ModelManager
 import com.mosstts.app.util.AppLogger
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.runBlocking
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * 系统 TTS 引擎服务：把本地 MOSS-TTS 模型暴露为 Android 系统文字转语音引擎。
@@ -27,29 +22,8 @@ import java.util.Locale
  * 其他应用（阅读器、无障碍服务等）在系统设置里选择「MOSS TTS 本地引擎」后，
  * 即可通过标准 TextToSpeech API 调用本引擎朗读文本。
  *
- * 实现说明（基于 compileSdk 34 / minSdk 26 的 TextToSpeechService 现代引擎 API，
- * 以下签名均已对照 android-34/android.jar 核实）：
- * - 合成入口是 [onSynthesizeText]：框架传入 [SynthesisRequest]，
- *   引擎把 PCM 音频通过 [SynthesisCallback.audioAvailable] 分块交给框架，
- *   由框架统一负责播放，语速/音量/音高/音频流等参数也由框架自动应用，
- *   因此引擎侧不需要（也不能）自行使用 AudioTrack 播放，否则会与框架播放叠加。
- * - 队列模式（QUEUE_ADD / QUEUE_FLUSH）由框架在客户端完成排解后再逐个请求引擎，
- *   引擎侧只需保证同一时刻只有一次合成在执行：用 [Mutex] 串行，
- *   防止多个应用并发调用时引擎状态竞争。
- * - [onStop] 表示"停止一切合成"：置中断标记并取消 ONNX 推理；
- *   框架收到停止后会自行停止播放，引擎不操作播放器。
- * - 模型未下载/初始化失败时通过 [SynthesisCallback.error] 通知调用方，绝不抛出异常。
- *
- * 与需求文档中旧式 API 的对应关系（下列成员在 API 34 的 TextToSpeechService 中
- * 均不存在，照搬旧教程将无法编译或永不被系统调用，故作此说明）：
- * - `onInit(status)` → 不存在，服务初始化入口为 [onCreate]；
- * - `onSpeak(text, queueMode, params, utteranceId)` → API 21 起被 [onSynthesizeText] 取代；
- * - `onDone(utteranceId)` / `onError(utteranceId)` → 不存在，对应 [SynthesisCallback.done] /
- *   [SynthesisCallback.error]；
- * - `onStop(utteranceId)` → 不存在，仅剩无参 [onStop]；
- * - `onGetFeatures()` → 实际方法名为 [onGetFeaturesForLanguage]（lang, country, variant）；
- * - `TextToSpeech.Engine.KEY_PARAM_RATE` → 该常量不存在，语速经
- *   [SynthesisRequest.getSpeechRate]（int 百分比，100 为正常速度）传入。
+ * 框架在专用合成线程上串行调用 [onSynthesizeText]。所有 PCM 和完成/错误回调
+ * 必须在该方法返回前交付；播放和队列由框架负责。[onStop] 可从另一线程中断推理。
  */
 class MossTTSService : TextToSpeechService() {
 
@@ -66,18 +40,11 @@ class MossTTSService : TextToSpeechService() {
         private const val FALLBACK_CHUNK_BYTES = 16384
     }
 
-    /** 合成互斥锁：多个应用可能同时发起合成请求，串行执行避免引擎内部状态竞争 */
-    private val synthMutex = Mutex()
-
     /**
      * 中断代号：[onStop] 时自增。
      * 每次合成开始前记录当前值，执行过程中发现值变化即说明收到停止指令，提前退出。
      */
-    @Volatile
-    private var stopToken = 0
-
-    /** 服务级协程作用域：SupervisorJob + Dispatchers.Default，服务销毁时统一取消 */
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val stopToken = AtomicInteger()
 
     // ==================== 生命周期 ====================
 
@@ -88,42 +55,55 @@ class MossTTSService : TextToSpeechService() {
 
     // ==================== 语言与特性 ====================
 
-    /**
-     * 当前使用的语言：简体中文。
-     * TextToSpeechService 约定返回 [语言, 国家, 变体] 三元组（而非 "zh-CN" 字符串本身），
-     * 由 Locale 对象正确序列化：Locale.CHINA.toString() = "zh_CN"，框架对外展示为 "zh-CN"。
-     */
+    /** TextToSpeechService 的语言三元组使用 ISO 三字母码。 */
     override fun onGetLanguage(): Array<String> {
-        val locale = Locale.CHINA // 即 Locale("zh", "CN")，对应 "zh-CN"
-        return arrayOf(locale.language, locale.country, locale.variant)
+        val locale = SystemTtsLanguage.locale
+        return arrayOf(locale.isO3Language, locale.isO3Country, locale.variant)
     }
 
     /**
      * 是否支持指定语言。
-     * 模型只支持中文：语言码取 zh（ISO-639-1）或 zho（ISO-639-2/T）；
-     * 国家未指定或为 CN 时按 zh-CN 可用，返回 LANG_AVAILABLE，其余一律 LANG_NOT_SUPPORTED。
+     * 匹配 zh/zho/chi 和 CN/CHN。国家匹配时必须返回 LANG_COUNTRY_AVAILABLE，
+     * 否则框架会认为 zh-CN 的 Voice 无效。
      */
     override fun onIsLanguageAvailable(lang: String?, country: String?, variant: String?): Int {
-        val isChinese = lang.equals("zh", ignoreCase = true) || lang.equals("zho", ignoreCase = true)
-        val countryOk = country.isNullOrEmpty() || country.equals("CN", ignoreCase = true)
-        return if (isChinese && countryOk) {
-            TextToSpeech.LANG_AVAILABLE
-        } else {
-            TextToSpeech.LANG_NOT_SUPPORTED
+        if (!SystemTtsLanguage.supportsLanguage(lang) || !SystemTtsLanguage.supportsCountry(country)) {
+            return TextToSpeech.LANG_NOT_SUPPORTED
         }
+        if ((application as? MossTTSApp)?.modelDownloader?.isModelReady() != true) {
+            return TextToSpeech.LANG_MISSING_DATA
+        }
+        return if (country.isNullOrEmpty()) TextToSpeech.LANG_AVAILABLE
+        else TextToSpeech.LANG_COUNTRY_AVAILABLE
     }
 
     /**
-     * 加载语言数据。中文语音数据随模型文件本地就绪，无需额外安装，
-     * 支持的语言直接返回 LANG_AVAILABLE。
+     * 查询不加载 ONNX；实际合成时再初始化模型。
      */
     override fun onLoadLanguage(lang: String?, country: String?, variant: String?): Int {
-        return if (onIsLanguageAvailable(lang, country, variant) == TextToSpeech.LANG_NOT_SUPPORTED) {
-            TextToSpeech.LANG_NOT_SUPPORTED
-        } else {
-            TextToSpeech.LANG_AVAILABLE
-        }
+        return onIsLanguageAvailable(lang, country, variant)
     }
+
+    override fun onGetVoices(): List<Voice> = listOf(
+        Voice(
+            SystemTtsLanguage.VOICE_NAME,
+            SystemTtsLanguage.locale,
+            Voice.QUALITY_NORMAL,
+            Voice.LATENCY_VERY_HIGH,
+            false,
+            emptySet(),
+        ),
+    )
+
+    override fun onGetDefaultVoiceNameFor(lang: String?, country: String?, variant: String?): String? =
+        if (SystemTtsLanguage.supportsLanguage(lang) && SystemTtsLanguage.supportsCountry(country)) {
+            SystemTtsLanguage.VOICE_NAME
+        } else null
+
+    override fun onIsValidVoiceName(voiceName: String?): Int =
+        if (voiceName == SystemTtsLanguage.VOICE_NAME) TextToSpeech.SUCCESS else TextToSpeech.ERROR
+
+    override fun onLoadVoice(voiceName: String?): Int = onIsValidVoiceName(voiceName)
 
     /**
      * 声明引擎特性集合（API 24+ 的真实方法名，需求文档中的 onGetFeatures() 并不存在）。
@@ -136,8 +116,8 @@ class MossTTSService : TextToSpeechService() {
     // ==================== 合成 ====================
 
     /**
-     * 框架请求合成文本。本方法运行在 Binder 线程，内部切到服务协程异步执行后立即返回，
-     * 不阻塞框架；合成结果通过 [callback] 异步通知框架。
+     * 在框架的合成线程等待 suspend 推理完成，保证返回后不再调用 callback。
+     * ModelManager 自行切换推理线程，不阻塞应用的主线程。
      */
     override fun onSynthesizeText(request: SynthesisRequest, callback: SynthesisCallback) {
         val text = request.charSequenceText?.toString() ?: ""
@@ -146,7 +126,7 @@ class MossTTSService : TextToSpeechService() {
         val utteranceId = params?.get(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID) as? String
         // 语速为百分比（100 为正常速度）：TextToSpeech.Engine 并无 KEY_PARAM_RATE 常量，
         // 语速由框架经 SynthesisRequest.getSpeechRate() 传入；音量为 0.0~1.0。
-        // 二者最终由框架应用到播放，此处仅解析记录。
+        // 此处仅解析记录；音量由框架应用到播放。
         val ratePercent = request.speechRate
         val volume = parseVolume(params)
         AppLogger.info(
@@ -154,24 +134,21 @@ class MossTTSService : TextToSpeechService() {
             "收到合成请求: utteranceId=$utteranceId, 语速=${ratePercent}%, 音量=$volume, 文本长度=${text.length}"
         )
 
-        // 记录进入时的中断代号：若在等待互斥锁期间收到 onStop，则直接放弃本次合成
-        val token = stopToken
-        serviceScope.launch {
-            try {
-                synthMutex.withLock {
-                    if (stopToken != token) {
-                        AppLogger.info(TAG, "等待期间收到停止指令，放弃合成: utteranceId=$utteranceId")
-                        return@withLock
-                    }
-                    synthesizeAndDeliver(text, utteranceId, request, callback, token)
-                }
-            } catch (e: CancellationException) {
-                // 协程被取消（服务销毁等）：属正常收尾，重新抛出，不当作合成失败回调
-                throw e
-            } catch (e: Exception) {
-                // 兜底：任何异常都通知调用方合成失败，避免引擎进程崩溃
-                AppLogger.error(TAG, "合成流程异常: utteranceId=$utteranceId", e)
-                runCatching { callback.error(TextToSpeech.ERROR_SYNTHESIS) }
+        val token = stopToken.get()
+        try {
+            runBlocking {
+                synthesizeAndDeliver(text, utteranceId, request, callback, token)
+            }
+        } catch (e: CancellationException) {
+            if (stopToken.get() == token) callback.error(TextToSpeech.ERROR_SYNTHESIS)
+        } catch (e: Exception) {
+            AppLogger.error(TAG, "合成流程异常: utteranceId=$utteranceId", e)
+            runCatching { callback.error(TextToSpeech.ERROR_SYNTHESIS) }
+        } finally {
+            // error() 只标记失败，done() 才向客户端发送结束/失败事件。
+            // 收到 stop 时由框架终止回调，其余路径都必须在返回前收尾。
+            if (stopToken.get() == token && !callback.hasFinished()) {
+                callback.done()
             }
         }
     }
@@ -182,16 +159,15 @@ class MossTTSService : TextToSpeechService() {
      */
     override fun onStop() {
         AppLogger.info(TAG, "onStop: 中断当前合成")
-        stopToken++
+        stopToken.incrementAndGet()
         modelManagerOrNull()?.cancelSynthesis()
     }
 
     override fun onDestroy() {
         AppLogger.info(TAG, "系统 TTS 引擎服务销毁")
-        // 中断可能仍在进行的合成，并取消服务协程
-        stopToken++
+        // 中断可能仍在进行的合成
+        stopToken.incrementAndGet()
         modelManagerOrNull()?.cancelSynthesis()
-        serviceScope.cancel()
         super.onDestroy()
     }
 
@@ -199,7 +175,7 @@ class MossTTSService : TextToSpeechService() {
 
     /**
      * 执行合成并把 PCM 分块交给框架播放。
-     * 全程 try-catch（由调用方的 launch 包裹），任何失败都通过 [SynthesisCallback.error]
+     * 全程 try-catch（由调用方包裹），任何失败都通过 [SynthesisCallback.error]
      * 通知调用方；收到停止指令时安静退出（框架已知晓本次中断，无需再回调）。
      */
     private suspend fun synthesizeAndDeliver(
@@ -231,6 +207,7 @@ class MossTTSService : TextToSpeechService() {
             callback.error(TextToSpeech.ERROR_SYNTHESIS)
             return
         }
+        if (stopToken.get() != token) return
 
         AppLogger.info(
             TAG,
@@ -248,7 +225,7 @@ class MossTTSService : TextToSpeechService() {
 
         // 合成过程中若收到停止指令：ONNX 推理被 cancel 中断后 result 会为 null，
         // 此时框架已知晓本次中断，安静退出即可，不再回调 error/done
-        if (stopToken != token) {
+        if (stopToken.get() != token) {
             AppLogger.info(TAG, "合成被中断，停止发送音频: utteranceId=$utteranceId")
             return
         }
@@ -274,7 +251,7 @@ class MossTTSService : TextToSpeechService() {
 
         var offset = 0
         while (offset < result.pcm.size) {
-            if (stopToken != token) {
+            if (stopToken.get() != token) {
                 AppLogger.info(TAG, "发送音频期间收到停止指令: utteranceId=$utteranceId")
                 return
             }
@@ -290,7 +267,7 @@ class MossTTSService : TextToSpeechService() {
             offset = end
         }
 
-        if (stopToken != token) {
+        if (stopToken.get() != token) {
             AppLogger.info(TAG, "发送音频完成后收到停止指令: utteranceId=$utteranceId")
             return
         }
