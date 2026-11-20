@@ -125,7 +125,10 @@ class SystemTtsIntegrationTest {
             override fun hasFinished() = "done" in events
         }
         // 空文本不需要模型，也能验证框架要求的同步错误与完成回调。
-        MossTTSService().onSynthesizeText(SynthesisRequest("", Bundle()), callback)
+        val synthesize = MossTTSService::class.java.getDeclaredMethod(
+            "onSynthesizeText", SynthesisRequest::class.java, SynthesisCallback::class.java,
+        ).apply { isAccessible = true }
+        synthesize.invoke(MossTTSService(), SynthesisRequest("", Bundle()), callback)
         assertEquals(listOf("error", "done"), events)
     }
 }
