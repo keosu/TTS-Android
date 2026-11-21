@@ -179,20 +179,27 @@ import java.util.Locale
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     VoiceAvatar(voice)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(voice?.let(::voiceLabel) ?: state.voice, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(voice?.let(::voiceDescription) ?: "选择在线音色", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(voice?.let(::voiceLabel) ?: state.voice, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.KeyboardArrowDown, "选择音色", tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp))
+                        }
+                        Text(voice?.let(::voiceDescription) ?: "选择在线音色", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Icon(Icons.Default.KeyboardArrowDown, "选择音色", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    FilledTonalIconButton(onClick = { voice?.let(model::preview) }, enabled = voice != null && !state.generating) {
+                        if (state.previewLoading == voice?.name) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else if (state.playback.id == "sample:${voice?.name}" && state.playback.playing) PauseIcon()
+                        else Icon(Icons.Default.PlayArrow, "试听当前音色")
+                    }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AssistChip(onClick = { controls = !controls }, label = { Text("语速 ${speed(state.rate)}") }, enabled = !state.generating)
-                    AssistChip(onClick = { controls = !controls }, label = { Text("音调 ${state.pitch}%") }, enabled = !state.generating)
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { voice?.let(model::preview) }, enabled = voice != null && !state.generating) {
-                        if (state.previewLoading == voice?.name) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                        else Text(if (state.playback.id == "sample:${voice?.name}" && state.playback.playing) "暂停试听" else "试听")
-                    }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(onClick = { controls = !controls }, label = { Text("语速 ${speed(state.rate)}", maxLines = 1) },
+                        enabled = !state.generating, modifier = Modifier.weight(1f))
+                    AssistChip(onClick = { controls = !controls }, label = { Text("音调 ${state.pitch}%", maxLines = 1) },
+                        enabled = !state.generating, modifier = Modifier.weight(1f))
                 }
                 AnimatedVisibility(controls) {
                     Column {
@@ -277,8 +284,9 @@ import java.util.Locale
                     else Icon(Icons.Default.PlayArrow, "播放音频")
                 }
                 Text(if (active && state.playback.playing) "正在播放" else if (active && state.playback.positionMs > 0) "继续播放" else "试听音频",
-                    style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                OutlinedButton({ export("mp3") }, enabled = !state.exporting) {
+                    style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                OutlinedButton({ export("mp3") }, enabled = !state.exporting, contentPadding = PaddingValues(horizontal = 12.dp)) {
                     DownloadIcon(); Spacer(Modifier.width(6.dp)); Text("保存 MP3")
                 }
             }

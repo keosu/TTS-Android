@@ -11,6 +11,8 @@ import androidx.test.espresso.Espresso
 class StudioUiTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private fun screenshot(name: String) {
+        // Allow transient voice-refresh notifications to finish before capturing the layout.
+        compose.mainClock.advanceTimeBy(6000)
         compose.waitForIdle()
         val image = (if (name == "voices") compose.onNodeWithTag("voice_sheet") else compose.onRoot()).captureToImage().asAndroidBitmap()
         saveUiScreenshot(name, image)
