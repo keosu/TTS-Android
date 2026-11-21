@@ -44,10 +44,14 @@
 Android 以包名识别 TTS 引擎，所以两个引擎使用不同 APK。Edge APK 不包含 ONNX 或 MOSS 模型。
 
 1. 安装 `edgeapp-release.apk`，打开 **Edge TTS**。
-2. 选择默认音色；首次打开自动刷新完整在线列表，网络不可用时保留缓存和内置常用声音。
-3. 可以选择晓晓、晓伊、云希、云健、台湾中文、香港粤语等；刷新后提供服务端返回的全部语言和声音。
-4. 调整默认语速、音调并点击「试听」。阅读器传入的语速和音调与默认值相乘，音量由 Android 控制。
-5. 点击「打开系统文字转语音设置」，将首选引擎切换为 **Edge TTS 在线引擎**。
+2. 「创作」页输入或粘贴文本（最多 20,000 字），选择音色、语速和音调，点击「生成语音」。
+3. 音色面板支持搜索、语言和性别筛选，以及单独试听。提供晓晓、云希、台湾中文、香港粤语等，首次启动刷新全部声音，离线保留缓存。
+4. 生成后可播放、暂停、拖动进度、分享音频或保存 MP3；记录菜单还可下载 SRT / VTT 字幕。
+5. 「最近」页保留最近 20 条完整录音和文本，最多占用 100 MB，可重新播放、导出、继续编辑或删除。已导出文件不受自动清理影响。
+6. 「设置」页配置系统默认音色、语速和音调，切换浅色 / 深色主题、自动播放，并打开系统文字转语音设置，选择 **Edge TTS 在线引擎**。
+
+创作参数与系统引擎默认值独立。阅读器传入的语速和音调与系统默认值相乘，音量由 Android 控制。
+长文自动分段并合并为一个 MP3；取消或失败的生成不会留下不完整的历史记录。
 
 Edge 需要网络，朗读文本直接发送至 Microsoft 的 `speech.platform.bing.com`，
 无需 API Key，不经过 `edge-tts.com` 网站或项目自建服务器。
@@ -56,7 +60,7 @@ Edge 需要网络，朗读文本直接发送至 Microsoft 的 `speech.platform.b
 实现采用原生 Kotlin + OkHttp，包含 Sec-MS-GEC v2、403 服务器时间校正重试、
 SSML 转义、长文本分段、WebSocket 音频帧解析和超时/停止处理。
 MP3 通过 Android MediaCodec 解码为 24kHz 单声道 PCM16，再交给系统 TTS 播放、排队和控制音量。
-当前不提供 WordBoundary / SentenceBoundary 高亮和 Azure 情感风格。
+创作页使用 SentenceBoundary 生成字幕；当前不提供逐字高亮和 Azure 情感风格。
 
 `EdgeGec.kt` 改编自 LGPLv3 的 Python `edge-tts` 实现；许可文本随 APK 打包，
 详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
@@ -98,7 +102,8 @@ Windows 可通过 Android Studio 构建，或设置 `JAVA_HOME` 后使用：
 ./gradlew :edgeapp:connectedDebugAndroidTest
 ```
 
-GitHub Actions 会在 Android 29 模拟器运行这些设备测试。
+GitHub Actions 会在 Android 29 模拟器运行这些设备测试，另外验证长文 MP3 拼接、文件导出、音色筛选及页面恢复。
+`edge-ui-preview` 构建附件包含创作、历史、设置、深色主题和音色面板的实机渲染截图。
 
 ## 技术栈
 

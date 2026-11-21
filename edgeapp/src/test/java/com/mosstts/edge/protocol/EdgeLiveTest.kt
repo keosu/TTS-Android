@@ -12,7 +12,10 @@ class EdgeLiveTest {
         val voices = EdgeVoiceCatalog.parse(client.listVoices())
         assertTrue(voices.size > 100)
         val voice = voices.single { it.name == "zh-CN-XiaoxiaoNeural" }
-        val audio = client.synthesize("你好，这是安卓语音服务测试。", voice, 125, 110, EdgeSession())
+        val result = client.synthesizeDetailed("你好，这是安卓语音服务测试。", voice, 125, 110, EdgeSession(), sentenceBoundaries = true)
+        val audio = result.audio
+        assertTrue("Missing sentence subtitles", result.captions.isNotEmpty())
+        assertTrue(result.captions.all { it.endMs > it.startMs && it.text.isNotBlank() })
         assertTrue("Empty MP3", audio.size > 1000)
         assertTrue("Missing MP3 sync header", (0 until audio.lastIndex).any {
             audio[it].toInt() and 255 == 255 && audio[it + 1].toInt() and 224 == 224

@@ -17,4 +17,5 @@ and install it with your own signing key; no device-specific signing key is requ
 
 OkHttp / Okio: Copyright Square, Inc.; Apache-2.0.
 Kotlin standard library: Copyright JetBrains s.r.o.; Apache-2.0.
+AndroidX / Jetpack Compose: Copyright The Android Open Source Project; Apache-2.0.
 This application is an independent client and is not affiliated with Microsoft.

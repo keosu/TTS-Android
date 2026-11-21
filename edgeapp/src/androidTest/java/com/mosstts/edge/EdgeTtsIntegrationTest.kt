@@ -6,9 +6,6 @@ import android.os.Bundle
 import android.speech.tts.SynthesisCallback
 import android.speech.tts.SynthesisRequest
 import android.speech.tts.TextToSpeech
-import android.widget.Button
-import android.view.View
-import android.view.ViewGroup
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -116,20 +113,4 @@ class EdgeTtsIntegrationTest {
         assertEquals(listOf("error", "done"), events)
     }
 
-    @Test fun settingsScreenSurvivesActivityRecreation() {
-        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            scenario.recreate()
-            scenario.onActivity { activity ->
-                fun buttons(view: View): List<Button> = when (view) {
-                    is Button -> listOf(view)
-                    is ViewGroup -> (0 until view.childCount).flatMap { buttons(view.getChildAt(it)) }
-                    else -> emptyList()
-                }
-                val labels = buttons(activity.window.decorView).map { it.text.toString() }
-                assertTrue(labels.contains("打开系统文字转语音设置"))
-                assertTrue(labels.contains("试听"))
-                assertTrue(labels.contains("停止朗读"))
-            }
-        }
-    }
 }

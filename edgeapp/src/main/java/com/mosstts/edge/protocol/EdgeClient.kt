@@ -6,6 +6,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.time.ZonedDateTime
@@ -87,17 +88,23 @@ class EdgeClient(
     }
 
     fun synthesize(text: String, voice: EdgeVoice, rate: Int, pitch: Int, session: EdgeSession): ByteArray =
-        withClockRetry { download(text, voice, rate, pitch, session) }
+        synthesizeDetailed(text, voice, rate, pitch, session).audio
 
-    private fun download(text: String, voice: EdgeVoice, rate: Int, pitch: Int, session: EdgeSession): ByteArray {
+    fun synthesizeDetailed(text: String, voice: EdgeVoice, rate: Int, pitch: Int, session: EdgeSession,
+                           sentenceBoundaries: Boolean = false): EdgeAudio =
+        withClockRetry { download(text, voice, rate, pitch, session, sentenceBoundaries) }
+
+    private fun download(text: String, voice: EdgeVoice, rate: Int, pitch: Int, session: EdgeSession,
+                         sentenceBoundaries: Boolean): EdgeAudio {
         session.checkActive()
-        val result = CompletableFuture<ByteArray>()
+        val result = CompletableFuture<EdgeAudio>()
         val audio = ByteArrayOutputStream()
+        val captions = mutableListOf<EdgeCaption>()
         val lastActivity = AtomicLong(System.nanoTime())
         val started = System.nanoTime()
         val listener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                if (!webSocket.send(EdgeProtocol.config()) ||
+                if (!webSocket.send(EdgeProtocol.config(sentenceBoundaries)) ||
                     !webSocket.send(EdgeProtocol.ssml(text, voice.name, voice.locale.toLanguageTag(), rate, pitch))) {
                     result.completeExceptionally(IOException("Unable to send synthesis request"))
                 }
@@ -115,10 +122,24 @@ class EdgeClient(
                 when (EdgeProtocol.headers(text)["path"]) {
                     "turn.end" -> {
                         if (audio.size() == 0) result.completeExceptionally(IOException("Edge returned no audio"))
-                        else result.complete(audio.toByteArray())
+                        else result.complete(EdgeAudio(audio.toByteArray(), captions.toList()))
                         webSocket.close(1000, "Completed")
                     }
-                    "response", "turn.start", "audio.metadata" -> Unit
+                    "audio.metadata" -> if (sentenceBoundaries) {
+                        runCatching {
+                            val metadata = JSONObject(text.substringAfter("\r\n\r\n")).getJSONArray("Metadata")
+                            for (i in 0 until metadata.length()) {
+                                val item = metadata.getJSONObject(i)
+                                if (item.optString("Type") == "SentenceBoundary") {
+                                    val data = item.getJSONObject("Data")
+                                    captions.add(EdgeCaption(data.getLong("Offset") / 10000,
+                                        (data.getLong("Offset") + data.getLong("Duration")) / 10000,
+                                        data.getJSONObject("text").getString("Text")))
+                                }
+                            }
+                        }
+                    }
+                    "response", "turn.start" -> Unit
                     else -> { result.completeExceptionally(IOException("Unexpected Edge response")); webSocket.cancel() }
                 }
             }

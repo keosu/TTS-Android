@@ -87,8 +87,14 @@ class EdgeClientTest {
     @Test fun turnEndWithoutAudioFails() {
         MockWebServer().use { server ->
             server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: Response) {
-                    webSocket.send("Path:turn.end\r\n\r\n")
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    if (EdgeProtocol.headers(text)["path"] == "ssml") {
+                        webSocket.send("Path:turn.end\r\n\r\n")
+                        webSocket.close(1000, "No audio")
+                    }
+                }
+                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                    webSocket.close(code, reason)
                 }
             }))
             assertThrows(IOException::class.java) {

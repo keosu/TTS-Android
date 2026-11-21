@@ -21,10 +21,10 @@ object EdgeProtocol {
     fun id(): String = UUID.randomUUID().toString().replace("-", "")
     fun timestamp(): String = timestampFormat.format(Instant.now())
 
-    fun config(): String = "X-Timestamp:${timestamp()}\r\n" +
+    fun config(sentenceBoundaries: Boolean = false): String = "X-Timestamp:${timestamp()}\r\n" +
         "Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n" +
         "{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{" +
-        "\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"}," +
+        "\"sentenceBoundaryEnabled\":\"$sentenceBoundaries\",\"wordBoundaryEnabled\":\"false\"}," +
         "\"outputFormat\":\"$OUTPUT_FORMAT\"}}}}\r\n"
 
     fun ssml(text: String, voice: String, language: String, rate: Int, pitch: Int): String {
