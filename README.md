@@ -103,7 +103,7 @@ Windows 可通过 Android Studio 构建，或设置 `JAVA_HOME` 后使用：
 ```
 
 GitHub Actions 会在 Android 29 模拟器运行这些设备测试，另外验证长文 MP3 拼接、文件导出、音色筛选及页面恢复。
-`edge-ui-preview` 构建附件包含创作、历史、设置、深色主题和音色面板的实机渲染截图。
+`edge-ui-preview` 构建附件包含创作、历史、设置、深色主题和音色面板的模拟器渲染截图。
 
 ## 技术栈
 

@@ -11,8 +11,16 @@ internal fun saveUiScreenshot(name: String, bitmap: Bitmap) {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     val file = File(instrumentation.targetContext.getExternalFilesDir(null), "edge-$name.png")
     file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
-    val command = "mkdir -p /data/local/tmp/edge-ui-preview && cp '${file.absolutePath}' /data/local/tmp/edge-ui-preview/"
-    ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(command)).use {
-        check(it.readBytes().isEmpty()) { "Could not preserve UI screenshot" }
+    fun shell(command: String): String =
+        ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(command)).use {
+            it.bufferedReader().readText()
+        }
+    // UiAutomation executes one command directly; it does not interpret shell operators or quotes.
+    require(file.absolutePath.none { it.isWhitespace() })
+    val destination = "/data/local/tmp/edge-ui-preview/edge-$name.png"
+    shell("mkdir -p /data/local/tmp/edge-ui-preview")
+    shell("cp ${file.absolutePath} $destination")
+    check(shell("ls $destination").trim() == destination) {
+        "Could not preserve UI screenshot: $destination"
     }
 }
