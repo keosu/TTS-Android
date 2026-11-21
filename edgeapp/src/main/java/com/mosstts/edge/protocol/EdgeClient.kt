@@ -158,10 +158,15 @@ class EdgeClient(
         }
         val socket = http.newWebSocket(request(authenticatedUrl("edge/v1", true), true), listener)
         session.attach(socket)
+        var completed = false
         try {
             while (true) {
                 session.checkActive()
-                try { return result.get(100, TimeUnit.MILLISECONDS) } catch (_: TimeoutException) {
+                try {
+                    val downloaded = result.get(100, TimeUnit.MILLISECONDS)
+                    completed = true
+                    return downloaded
+                } catch (_: TimeoutException) {
                     val now = System.nanoTime()
                     if (TimeUnit.NANOSECONDS.toMillis(now - lastActivity.get()) > idleTimeoutMillis ||
                         TimeUnit.NANOSECONDS.toMillis(now - started) > totalTimeoutMillis) {
@@ -174,7 +179,8 @@ class EdgeClient(
             }
         } finally {
             session.detach(socket)
-            socket.cancel()
+            // turn.end starts a normal close handshake; let it finish after a successful download.
+            if (!completed) socket.cancel()
         }
     }
 }

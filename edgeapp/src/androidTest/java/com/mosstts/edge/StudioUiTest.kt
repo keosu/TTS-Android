@@ -1,6 +1,5 @@
 package com.mosstts.edge
 
-import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -8,16 +7,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import androidx.test.espresso.Espresso
-import java.io.File
 
 class StudioUiTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private fun screenshot(name: String) {
         compose.waitForIdle()
         val image = (if (name == "voices") compose.onNodeWithTag("voice_sheet") else compose.onRoot()).captureToImage().asAndroidBitmap()
-        File(compose.activity.getExternalFilesDir(null), "edge-$name.png").outputStream().use {
-            image.compress(Bitmap.CompressFormat.PNG, 100, it)
-        }
+        saveUiScreenshot(name, image)
     }
     private fun hideKeyboard() {
         Espresso.closeSoftKeyboard()

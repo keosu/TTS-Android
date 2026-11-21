@@ -122,7 +122,7 @@ jobs:
         script: |
           ./gradlew :edgeapp:connectedDebugAndroidTest --no-daemon
           mkdir -p edgeapp/build/reports/ui
-          adb pull /sdcard/Android/data/com.mosstts.edge/files/. edgeapp/build/reports/ui/
+          adb pull /data/local/tmp/edge-ui-preview/. edgeapp/build/reports/ui/
     - name: Upload Edge UI previews
       if: always()
       uses: actions/upload-artifact@v4

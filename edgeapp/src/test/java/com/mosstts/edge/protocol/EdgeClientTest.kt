@@ -29,7 +29,11 @@ class EdgeClientTest {
                             .putShort(headers.size.toShort()).put(headers).put(mp3).array()
                         webSocket.send(frame.toByteString())
                         webSocket.send("Path:turn.end\r\n\r\n")
+                        webSocket.close(1000, "Completed")
                     }
+                }
+                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                    webSocket.close(code, reason)
                 }
             }))
             val audio = EdgeClient(server.url("/readaloud").toString()).synthesize("你好", voice, 100, 100, EdgeSession())

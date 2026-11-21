@@ -24,6 +24,10 @@ class AudioGeneratorTest {
             webSocket.send("Path:audio.metadata\r\n\r\n" +
                 """{"Metadata":[{"Type":"SentenceBoundary","Data":{"Offset":0,"Duration":10000000,"text":{"Text":"示例字幕"}}}]}""")
             webSocket.send("Path:turn.end\r\n\r\n")
+            webSocket.close(1000, "Completed")
+        }
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+            webSocket.close(code, reason)
         }
     })
     @Test fun longTextProducesOneRecordingWithContinuousSubtitleOffsets() {

@@ -1,6 +1,5 @@
 package com.mosstts.edge
 
-import android.graphics.Bitmap
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -9,14 +8,12 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
-import androidx.test.platform.app.InstrumentationRegistry
 import com.mosstts.edge.data.AudioRecord
 import com.mosstts.edge.ui.EdgeTheme
 import com.mosstts.edge.ui.RecordCard
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
-import java.io.File
 import java.util.UUID
 
 class StudioRecordUiTest {
@@ -43,9 +40,6 @@ class StudioRecordUiTest {
         compose.onNodeWithText("下载 VTT 字幕").performClick()
         assertEquals("vtt", exported)
         compose.waitForIdle()
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        File(context.getExternalFilesDir(null), "edge-result.png").outputStream().use {
-            compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
-        }
+        saveUiScreenshot("result", compose.onRoot().captureToImage().asAndroidBitmap())
     }
 }
