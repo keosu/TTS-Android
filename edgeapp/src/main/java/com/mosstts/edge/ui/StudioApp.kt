@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -25,7 +24,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -117,8 +115,8 @@ import java.util.Locale
 }
 
 @Composable private fun SectionCard(title: String? = null, content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (title != null) Text(title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             content()
         }
@@ -134,51 +132,40 @@ import java.util.Locale
     var previousGenerating by remember { mutableStateOf(false) }
     var previousResult by remember { mutableStateOf(state.result?.id) }
     LaunchedEffect(state.generating) {
-        if (!state.generating && previousGenerating && state.result?.id != previousResult) scroll.animateScrollToItem(4)
+        if (!state.generating && previousGenerating && state.result?.id != previousResult) scroll.animateScrollToItem(3)
         previousGenerating = state.generating
         previousResult = state.result?.id
     }
     var controls by rememberSaveable { mutableStateOf(false) }
     val voice = state.voices.firstOrNull { it.name == state.voice }
-    LazyColumn(Modifier.fillMaxSize().testTag("creation_list"), state = scroll, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item {
-            val primary = MaterialTheme.colorScheme.primary
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondaryContainer)))
-                .padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("文字有声，表达更生动", color = primary, style = MaterialTheme.typography.labelLarge)
-                    VoiceBars(primary, Modifier.size(62.dp, 26.dp))
-                }
-                Text("把文字，变成声音", fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                Text("选择喜欢的音色，让每一句话自然流畅。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
+    LazyColumn(Modifier.fillMaxSize().testTag("creation_list"), state = scroll, contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             SectionCard {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("输入文本", fontWeight = FontWeight.SemiBold)
                     Row {
-                        TextButton(onClick = { clipboard.getText()?.text?.let(model::text) }, enabled = !state.generating) { Text("粘贴") }
-                        TextButton(onClick = { model.text("") }, enabled = !state.generating && state.text.isNotEmpty(), modifier = Modifier.testTag("clear_text")) { Text("清空") }
+                        TextButton(onClick = { clipboard.getText()?.text?.let(model::text) }, enabled = !state.generating,
+                            contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.widthIn(min = 48.dp)) { Text("粘贴") }
+                        TextButton(onClick = { model.text("") }, enabled = !state.generating && state.text.isNotEmpty(),
+                            contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.widthIn(min = 48.dp).testTag("clear_text")) { Text("清空") }
+                        TextButton(onClick = { model.text("早安。给自己一点时间，让生活慢下来。\n每一个新的开始，都藏着值得期待的可能。") }, enabled = !state.generating,
+                            contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.widthIn(min = 48.dp)) { Text("示例") }
                     }
                 }
                 OutlinedTextField(state.text, model::text, modifier = Modifier.fillMaxWidth().testTag("text_input"),
-                    placeholder = { Text("在这里输入或粘贴文字…\n\n文案、故事、学习笔记，都可以变成语音。") },
-                    minLines = 5, maxLines = 10, readOnly = state.generating, shape = RoundedCornerShape(16.dp),
+                    placeholder = { Text("在这里输入或粘贴文字…") },
+                    minLines = 3, maxLines = 8, readOnly = state.generating, shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("${state.text.length} / 20,000", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
-                    TextButton(onClick = { model.text("早安。给自己一点时间，让生活慢下来。\n每一个新的开始，都藏着值得期待的可能。") }, enabled = !state.generating) { Text("试用示例") }
-                }
+                Text("${state.text.length} / 20,000", modifier = Modifier.align(Alignment.End),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
         }
         item {
             SectionCard {
                 Row(Modifier.fillMaxWidth().clickable(enabled = !state.generating, onClick = chooseVoice).testTag("choose_voice"),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    VoiceAvatar(voice)
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VoiceAvatar(voice, 36)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(voice?.let(::voiceLabel) ?: state.voice, fontWeight = FontWeight.SemiBold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -194,7 +181,6 @@ import java.util.Locale
                         else Icon(Icons.Default.PlayArrow, "试听当前音色")
                     }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AssistChip(onClick = { controls = !controls }, label = { Text("语速 ${speed(state.rate)}", maxLines = 1) },
                         enabled = !state.generating, modifier = Modifier.weight(1f))
@@ -211,9 +197,9 @@ import java.util.Locale
             }
         }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(onClick = { focus.clearFocus(); model.generate() }, enabled = !state.generating && state.text.isNotBlank() && voice != null,
-                    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("generate"), shape = RoundedCornerShape(18.dp)) {
+                    modifier = Modifier.fillMaxWidth().height(48.dp).testTag("generate"), shape = RoundedCornerShape(14.dp)) {
                     Icon(Icons.Default.PlayArrow, null)
                     Spacer(Modifier.width(8.dp))
                     Text(if (state.generating) "正在生成语音…" else "生成语音", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
@@ -224,15 +210,13 @@ import java.util.Locale
                         Text("已完成 ${state.completedParts} / ${state.totalParts} 段", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                         TextButton(model::cancelGeneration) { Text("取消生成") }
                     }
-                } else Text("生成后自动保存在本机，可随时播放和导出。", modifier = Modifier.align(Alignment.CenterHorizontally),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         state.result?.let { record -> item {
             RecordCard(record, state, { model.play(record) }, model::seek, { export(record, it) }, { share(record) },
                 { model.useRecord(record) }, { delete(record) }, compact = false)
         } }
-        item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
@@ -243,15 +227,19 @@ import java.util.Locale
     val duration = if (active && state.playback.durationMs > 0) state.playback.durationMs else record.durationMs
     var menu by remember { mutableStateOf(false) }
     var dragging by remember(record.id) { mutableStateOf<Float?>(null) }
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface,
+    Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
         border = if (active) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .5f)) else null,
         modifier = Modifier.fillMaxWidth().testTag("record_${record.id}")) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                if (!compact) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) {
-                    Text("生成完成", Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.labelMedium)
-                } else Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(record.createdAt)),
-                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(record.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    val details = "${record.voiceLabel.take(24)} · ${speed(record.rate)} · ${time(duration)}"
+                    val date = if (compact) SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(record.createdAt)) else "已生成"
+                    Text("$date · $details", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 Box {
                     IconButton({ menu = true }) { Icon(Icons.Default.MoreVert, "记录操作") }
                     DropdownMenu(menu, { menu = false }) {
@@ -265,8 +253,6 @@ import java.util.Locale
                     }
                 }
             }
-            Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text("${record.voiceLabel.take(24)} · ${speed(record.rate)} · ${time(duration)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (!compact || active) {
                 Slider(value = dragging ?: if (active) state.playback.positionMs.toFloat().coerceAtMost(duration.toFloat()) else 0f,
                     onValueChange = { dragging = it }, onValueChangeFinished = { dragging?.let { seek(it.toLong()) }; dragging = null },
@@ -296,21 +282,22 @@ import java.util.Locale
 
 @Composable private fun HistoryScreen(state: StudioState, model: StudioViewModel, export: (AudioRecord, String) -> Unit,
                                      share: (AudioRecord) -> Unit, edit: (AudioRecord) -> Unit, delete: (AudioRecord) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
-            Column(Modifier.padding(4.dp, 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("最近的声音", fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                Text("${state.history.size} 条记录 · 保存在这台设备上", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("最近记录", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("${state.history.size} 条 · 本机保存", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
         }
         if (state.history.isEmpty()) item {
             SectionCard {
-                Spacer(Modifier.height(24.dp))
-                Icon(Icons.AutoMirrored.Filled.List, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp).align(Alignment.CenterHorizontally))
+                Spacer(Modifier.height(8.dp))
+                Icon(Icons.AutoMirrored.Filled.List, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp).align(Alignment.CenterHorizontally))
                 Text("还没有生成记录", fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.CenterHorizontally))
                 Text("在创作页生成第一段语音，\n它会自动出现在这里。", style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.CenterHorizontally))
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(8.dp))
             }
         }
         items(state.history, key = { it.id }) { record ->
@@ -318,7 +305,7 @@ import java.util.Locale
                 { edit(record) }, { delete(record) }, compact = true)
         }
         item { Text("保留最近 20 条，最多 100 MB。已导出的文件不受历史清理影响。",
-            Modifier.padding(8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 
@@ -326,8 +313,8 @@ import java.util.Locale
                                       chooseVoice: () -> Unit, clearHistory: () -> Unit, licenses: () -> Unit) {
     val context = LocalContext.current
     val systemVoice = state.voices.firstOrNull { it.name == state.systemVoice }
-    LazyColumn(Modifier.fillMaxSize().testTag("settings_list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item { Text("按你的习惯，设定声音", Modifier.padding(4.dp, 8.dp), fontSize = 25.sp, fontWeight = FontWeight.Bold) }
+    LazyColumn(Modifier.fillMaxSize().testTag("settings_list"), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { Text("设置", Modifier.padding(vertical = 4.dp), fontSize = 20.sp, fontWeight = FontWeight.Bold) }
         item {
             SectionCard("系统文字转语音") {
                 Text("让阅读器和其他应用使用 Edge 在线语音。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
@@ -336,7 +323,7 @@ import java.util.Locale
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth().clickable(onClick = chooseVoice), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("系统默认音色", style = MaterialTheme.typography.labelLarge)
                         Text(systemVoice?.let(::voiceLabel) ?: state.systemVoice, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -358,7 +345,7 @@ import java.util.Locale
                     }
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("生成后自动播放", style = MaterialTheme.typography.bodyLarge)
                         Text("语音准备好后立即试听", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -394,7 +381,7 @@ import java.util.Locale
                         Uri.parse("https://github.com/keosu/MOSS-TTS-Nano-Android/tree/feature/edge-tts/edgeapp"))) }
                         .onFailure { model.message("未找到可打开链接的浏览器") } }) { Text("源代码") }
                 }
-                Text("版本 1.1.0", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("版本 1.1.1", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -412,11 +399,11 @@ import java.util.Locale
             (query.isBlank() || (voice.name + voice.displayName + voiceDescription(voice)).contains(query, true)) }
     }
     ModalBottomSheet(onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(.88f).padding(horizontal = 20.dp).testTag("voice_sheet"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("找到喜欢的声音", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Column(Modifier.fillMaxWidth().fillMaxHeight(.88f).padding(horizontal = 12.dp).testTag("voice_sheet"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("选择音色", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             OutlinedTextField(query, { query = it }, singleLine = true, leadingIcon = { Icon(Icons.Default.Search, null) },
-                placeholder = { Text("搜索音色、语言或地区") }, modifier = Modifier.fillMaxWidth().testTag("voice_search"), shape = RoundedCornerShape(16.dp))
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                placeholder = { Text("搜索音色、语言或地区") }, modifier = Modifier.fillMaxWidth().testTag("voice_search"), shape = RoundedCornerShape(12.dp))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box {
                     FilterChip(language != null, { languageMenu = true }, label = { Text(language?.let { Locale(it).getDisplayLanguage(Locale.SIMPLIFIED_CHINESE) } ?: "全部语言") },
                         trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(16.dp)) })
@@ -433,15 +420,15 @@ import java.util.Locale
                 }
             }
             Text("${filtered.size} 个音色 · 点播放按钮试听", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
                 items(filtered, key = { it.name }) { voice ->
                     val active = voice.name == selected
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                         .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                        .clickable { choose(voice) }.padding(12.dp).testTag("voice_${voice.name}"), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        VoiceAvatar(voice, 40)
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        .clickable { choose(voice) }.padding(horizontal = 8.dp, vertical = 4.dp).testTag("voice_${voice.name}"), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VoiceAvatar(voice, 32)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(voiceLabel(voice), fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(voiceDescription(voice), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
@@ -453,7 +440,7 @@ import java.util.Locale
                         }
                     }
                 }
-                if (filtered.isEmpty()) item { Text("没有找到匹配的音色，试试其他关键词。", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                if (filtered.isEmpty()) item { Text("没有找到匹配的音色，试试其他关键词。", Modifier.padding(8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
     }
@@ -473,15 +460,6 @@ import java.util.Locale
     val color = if (voice?.gender == "Female") Color(0xFF8270B9) else MaterialTheme.colorScheme.primary
     Box(Modifier.size(size.dp).clip(RoundedCornerShape(14.dp)).background(color.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
         Text(voice?.let(::voiceLabel)?.take(1) ?: "声", color = color, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-@Composable private fun VoiceBars(color: Color, modifier: Modifier) {
-    Canvas(modifier) {
-        listOf(.35f, .7f, .5f, 1f, .55f, .8f, .3f).forEachIndexed { i, height ->
-            val width = size.width / 12
-            drawRoundRect(color.copy(alpha = .7f), Offset(i * size.width / 7, size.height * (1 - height) / 2),
-                Size(width, size.height * height), CornerRadius(width / 2))
-        }
     }
 }
 @Composable private fun DownloadIcon() {

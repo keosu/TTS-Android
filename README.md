@@ -43,7 +43,7 @@
 它和 MOSS 的 `com.mosstts.app` 可同时安装，并在 Android 系统的「首选引擎」中分别选择。
 Android 以包名识别 TTS 引擎，所以两个引擎使用不同 APK。Edge APK 不包含 ONNX 或 MOSS 模型。
 
-1. 安装 `edgeapp-release.apk`，打开 **Edge TTS**。
+1. 从 [Edge TTS Release](https://github.com/keosu/MOSS-TTS-Nano-Android/releases/tag/edge-v1.1.1) 下载 APK 并安装，打开 **Edge TTS**。Actions 构建附件中的文件名为 `edgeapp-release.apk`。
 2. 「创作」页输入或粘贴文本（最多 20,000 字），选择音色、语速和音调，点击「生成语音」。
 3. 音色面板支持搜索、语言和性别筛选，以及单独试听。提供晓晓、云希、台湾中文、香港粤语等，首次启动刷新全部声音，离线保留缓存。
 4. 生成后可播放、暂停、拖动进度、分享音频或保存 MP3；记录菜单还可下载 SRT / VTT 字幕。
