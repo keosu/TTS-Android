@@ -229,7 +229,7 @@ import java.util.Locale
     }
 }
 
-@Composable private fun RecordCard(record: AudioRecord, state: StudioState, play: () -> Unit, seek: (Long) -> Unit,
+@Composable internal fun RecordCard(record: AudioRecord, state: StudioState, play: () -> Unit, seek: (Long) -> Unit,
                                    export: (String) -> Unit, share: () -> Unit, edit: () -> Unit, delete: () -> Unit,
                                    compact: Boolean) {
     val active = state.playback.id == record.id

@@ -26,7 +26,9 @@ class StudioUiTest {
     @Test fun creationDraftSurvivesNavigationAndActivityRecreation() {
         compose.onNodeWithTag("text_input").performTextReplacement("你好，让文字成为自然流畅的声音。")
         hideKeyboard()
-        compose.onNodeWithTag("generate").performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag("creation_list").performScrollToNode(hasTestTag("generate"))
+        compose.onNodeWithTag("generate").assertIsEnabled()
+        screenshot("creation-controls")
         compose.onNodeWithTag("creation_list").performScrollToIndex(0)
         screenshot("creation")
         compose.onNodeWithTag("nav_1").performClick()
@@ -45,11 +47,12 @@ class StudioUiTest {
     }
     @Test fun voiceSearchSelectsStudioVoiceWithoutChangingSystemDefault() {
         val defaultVoice = EdgeSettings(compose.activity).voice
-        compose.onNodeWithTag("choose_voice").performScrollTo().performClick()
+        compose.onNodeWithTag("creation_list").performScrollToNode(hasTestTag("choose_voice"))
+        compose.onNodeWithTag("choose_voice").performClick()
+        screenshot("voices")
         compose.onNodeWithTag("voice_search").performTextInput("Yunxi")
         hideKeyboard()
         compose.onNodeWithTag("voice_zh-CN-YunxiNeural").assertExists()
-        screenshot("voices")
         compose.onNodeWithTag("voice_zh-CN-YunxiNeural").performClick()
         compose.onNodeWithTag("voice_search").assertDoesNotExist()
         assertEquals("zh-CN-YunxiNeural", EdgeSettings(compose.activity).studioVoice)
